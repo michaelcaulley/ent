@@ -109,6 +109,10 @@ func NewSchemaConfigContext(parent context.Context, config SchemaConfig) context
 		{{- else if $e.M2M }}
 			{{- if $e.Through }}
 				{{- $schema = $e.Through.Name }}
+			{{- else if and $e.Inverse $e.Ref $e.Ref.Through }}
+				{{- /* Inverse side of a Through M2M: both sides share one physical join table,
+				       so reference the same SchemaConfig field as the assoc side. */}}
+				{{- $schema = $e.Ref.Through.Name }}
 			{{- else if $e.Inverse }}
 				{{- $schema = print $e.Type.Name (pascal $e.Inverse) }}
 			{{- else }}
@@ -184,6 +188,9 @@ func NewSchemaConfigContext(parent context.Context, config SchemaConfig) context
 	{{- else if $e.M2M }}
 		{{- if $e.Through }}
 			{{- $schema = $e.Through.Name }}
+		{{- else if and $e.Inverse $e.Ref $e.Ref.Through }}
+			{{- /* Inverse side of a Through M2M: share the assoc side's SchemaConfig field. */}}
+			{{- $schema = $e.Ref.Through.Name }}
 		{{- else if $e.Inverse }}
 			{{- $schema = print $e.Type.Name (pascal $e.Inverse) }}
 		{{- else }}
