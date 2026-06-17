@@ -166,13 +166,21 @@ func TestMySQL(t *testing.T) {
 	require.Len(t, sib, 2)
 	require.True(t, slices.ContainsFunc(sib, func(u *ent.User) bool { return u.Name == el.Name }))
 	require.True(t, slices.ContainsFunc(sib, func(u *ent.User) bool { return u.Name == jo.Name }))
-	
+
 	// Cross-schema edge predicate: QueryGroups().Where(HasUsersWith(...))
-	// must qualify group_users with db2, since the connection defaults to db1.
+	// must qualify group_users with db2, since the connection defaults to public.
 	got := a8m.QueryGroups().
 		Where(group.HasUsersWith(user.ID(a8m.ID))).
 		CountX(ctx)
 	require.Equal(t, 1, got) // a8m was removed from GitHub above; only GitLab remains
+
+	// Cross-schema order-by-neighbor (M2M Through): ByGroupsCount must qualify
+	// the groups/group_users tables with db2, since the connection defaults to
+	// public. A wrong or missing schema would fail at execution rather than just
+	// mis-render. a8m is the only user still in a group (GitLab), so it sorts
+	// first under descending count.
+	byGroups := client.User.Query().Order(user.ByGroupsCount(sql.OrderDesc())).AllX(ctx)
+	require.Equal(t, a8m.ID, byGroups[0].ID)
 }
 
 func TestVersionedMigration(t *testing.T) {
