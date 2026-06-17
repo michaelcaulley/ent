@@ -53,11 +53,13 @@ func TestMySQL(t *testing.T) {
 	require.NoError(t, err)
 	_, err = db.ExecContext(ctx, pl)
 	require.NoError(t, err)
-
-	// Default schema for the connection is db1.
-	db1, err := sql.Open("mysql", "root:pass@tcp(localhost:3308)/db1?parseTime=true")
+	_, err = db.ExecContext(ctx, "CREATE DATABASE IF NOT EXISTS `public`")
 	require.NoError(t, err)
-	defer db1.Close()
+
+	// Default schema for the connection is public.
+	public, err := sql.Open("mysql", "root:pass@tcp(localhost:3308)/public?parseTime=true")
+	require.NoError(t, err)
+	defer public.Close()
 
 	cfg := ent.SchemaConfig{
 		// The "users" and the "pets" table reside in the same schema
@@ -74,7 +76,7 @@ func TestMySQL(t *testing.T) {
 		// An edge with the "Through" definition is set on its edge-schema.
 		Friendship: "db2",
 	}
-	client := ent.NewClient(ent.Driver(db1), ent.AlternateSchema(cfg))
+	client := ent.NewClient(ent.Driver(public), ent.AlternateSchema(cfg))
 	pedro := client.Pet.Create().SetName("Pedro").SaveX(ctx)
 	groups := client.Group.CreateBulk(
 		client.Group.Create().SetName("GitHub"),
@@ -164,7 +166,7 @@ func TestMySQL(t *testing.T) {
 	require.Len(t, sib, 2)
 	require.True(t, slices.ContainsFunc(sib, func(u *ent.User) bool { return u.Name == el.Name }))
 	require.True(t, slices.ContainsFunc(sib, func(u *ent.User) bool { return u.Name == jo.Name }))
-
+	
 	// Cross-schema edge predicate: QueryGroups().Where(HasUsersWith(...))
 	// must qualify group_users with db2, since the connection defaults to db1.
 	got := a8m.QueryGroups().
